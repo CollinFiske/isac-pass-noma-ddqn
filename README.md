@@ -1,4 +1,4 @@
-# Mobility-Aware ISAC-PASS-NOMA — Unified Joint DDQN (v3)
+# Mobility-Aware ISAC-PASS-NOMA — Unified Joint DDQN 
 
 **Double-DQN**. One network (`JointQNet`)
 scores every `(pair, alpha)` action; Temporal difference (TD) bootstrapping with a target network chooses **both** which two
