@@ -1,0 +1,21 @@
+================================================================
+ PURE DDQN (from scratch) | 6000 episodes | gamma 0.99 | lr 0.0003
+ alpha grid: [0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+================================================================
+ep     1/6000 | eps 1.000 | EVAL avg util/user  DDQN  1.932  Greedy  2.025  Random  1.717  | DDQN/Greedy  95.4% *saved
+ep   500/6000 | eps 0.861 | EVAL avg util/user  DDQN  1.898  Greedy  2.025  Random  1.717  | DDQN/Greedy  93.8%
+ep  1000/6000 | eps 0.741 | EVAL avg util/user  DDQN  1.964  Greedy  2.025  Random  1.717  | DDQN/Greedy  97.0% *saved
+ep  1500/6000 | eps 0.638 | EVAL avg util/user  DDQN  1.964  Greedy  2.025  Random  1.717  | DDQN/Greedy  97.0% *saved
+ep  2000/6000 | eps 0.549 | EVAL avg util/user  DDQN  1.995  Greedy  2.025  Random  1.717  | DDQN/Greedy  98.5% *saved
+ep  2500/6000 | eps 0.472 | EVAL avg util/user  DDQN  1.961  Greedy  2.025  Random  1.717  | DDQN/Greedy  96.8%
+ep  3000/6000 | eps 0.407 | EVAL avg util/user  DDQN  2.021  Greedy  2.025  Random  1.717  | DDQN/Greedy  99.8% *saved
+ep  3500/6000 | eps 0.350 | EVAL avg util/user  DDQN  1.921  Greedy  2.025  Random  1.717  | DDQN/Greedy  94.9%
+ep  4000/6000 | eps 0.301 | EVAL avg util/user  DDQN  1.953  Greedy  2.025  Random  1.717  | DDQN/Greedy  96.4%
+ep  4500/6000 | eps 0.259 | EVAL avg util/user  DDQN  2.048  Greedy  2.025  Random  1.717  | DDQN/Greedy 101.1% *saved
+ep  5000/6000 | eps 0.223 | EVAL avg util/user  DDQN  2.056  Greedy  2.025  Random  1.717  | DDQN/Greedy 101.5% *saved
+ep  5500/6000 | eps 0.192 | EVAL avg util/user  DDQN  1.932  Greedy  2.025  Random  1.717  | DDQN/Greedy  95.4%
+ep  6000/6000 | eps 0.165 | EVAL avg util/user  DDQN  1.988  Greedy  2.025  Random  1.717  | DDQN/Greedy  98.2%
+================================================================
+ DONE -> NEW_isac_pass_noma_ddqn.pth | best(sel) 101.5%
+ FINAL 200-scene held-out avg util/user: DDQN 2.027  Greedy 2.022  Random 1.700  | DDQN/Greedy 100.3%  DDQN/Random 119.2%
+================================================================
