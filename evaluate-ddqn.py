@@ -11,18 +11,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-spec = importlib.util.spec_from_file_location("tv", os.path.join(os.path.dirname(os.path.abspath(__file__)), "training-vid.py"))
+spec = importlib.util.spec_from_file_location("tv", os.path.join(os.path.dirname(os.path.abspath(__file__)), "train.py"))
 tv = importlib.util.module_from_spec(spec); sys.modules["tv"] = tv; spec.loader.exec_module(tv)
 
 
-def load_model(path):
+def load_model(path): # loads in model w/ proper name
     net = tv.JointQNet(); net.load_state_dict(torch.load(path)); net.eval()
     return net
 
 
-def evaluate(net, tag, curve_path):
+def evaluate(net, tag, curve_path): # does the eval of the ddqn model - verifies if DDQN >= greedy; console logs power split difference (learned vs closed-form); shows how learning improves utility w/ more episodes (see eval_results.png) 
     rng = np.random.default_rng(123)
-    K = 8; P_groups = K // 2; SCENES = 60
+    K = 8; P_groups = K // 2; SCENES = 60 # sets K val, the evaluation is done from 60 randomly chosen scenes
     d_u, g_u, r_u, learned_a_u, closed_a_u, partner_opt = [], [], [], [], [], []
     comm, weak, strong, sens, d_rate_ok, g_rate_ok = [], [], [], [], [], []
 
@@ -40,7 +40,7 @@ def evaluate(net, tag, curve_path):
         learned_a_u.append(tv.pairs_utility_per_user(dp, pts, fad, w, x_c, P_groups, "given"))
         closed_a_u.append(tv.pairs_utility_per_user([(u, v) for (u, v, _) in dp], pts, fad, w, x_c, P_groups, "closed"))
 
-        # partner-selection quality: for one random user, does JointQNet's grouping value pick the best partner?
+        # partner-selection quality: for 1 random user, find if JointQNet's grouping value picks the best partner
         ctx = tv.build_context(base, [True] * K, list(range(tv.N_C)))
         u1 = int(rng.integers(K)); others = [j for j in range(K) if j != u1]
         net_u2 = others[int(np.argmax([tv.pair_group_value(net, base, ctx, u1, j) for j in others]))]
@@ -82,16 +82,13 @@ def evaluate(net, tag, curve_path):
     print(f"   DDQN vs Greedy: {100*d/max(g,1e-9):.1f}%   DDQN vs Random: {100*d/max(r,1e-9):.1f}%")
     print("-" * 62)
     print(f" Power split on identical DDQN pairings (avg semantic utility/user):")
-    print(f"   learned alpha {np.mean(learned_a_u):.3f}  vs  closed-form alpha {np.mean(closed_a_u):.3f}"
-          f"   (+{100*(np.mean(learned_a_u)/max(np.mean(closed_a_u),1e-9)-1):.1f}%)")
+    print(f"   learned alpha {np.mean(learned_a_u):.3f}  vs  closed-form alpha {np.mean(closed_a_u):.3f}"f"   (+{100*(np.mean(learned_a_u)/max(np.mean(closed_a_u),1e-9)-1):.1f}%)")
     print("-" * 62)
-    print(f" Grouping partner-selection quality: {np.mean(partner_opt):.2f} of optimal (random=0.5)")
+    print(f" Grouping partner-selection quality: {np.mean(partner_opt):.2f} of optimal (random=0.5)") # how good the nn is at picking who to pair w/ who (1=best partner, 0.5=same as random guess, 0=worst)
     print("-" * 62)
-    print(f" comm median {np.median(comm):.2f} | weak {np.median(weak):.2f} | strong {np.median(strong):.2f}"
-          f" | sensing {np.median(sens):.2f} dB | clear Gamma_min {100*np.mean(np.array(sens)>=tv.GAMMA_MIN_DB):.1f}%")
+    print(f" median comm SINR (all users): {np.median(comm):.2f} | weak users: {np.median(weak):.2f} | strong users: {np.median(strong):.2f}"f" | sensing {np.median(sens):.2f} dB | clear Gamma_min {100*np.mean(np.array(sens)>=tv.GAMMA_MIN_DB):.1f}%") # 
     print("-" * 62)
-    print(f" R_min ({tv.R_MIN:.0f} bit/s/Hz) satisfaction:  DDQN {100*np.mean(d_rate_ok):.1f}%  vs  "
-          f"Greedy {100*np.mean(g_rate_ok):.1f}%  of users")
+    print(f" R_min ({tv.R_MIN:.0f} bit/s/Hz) satisfaction:  DDQN {100*np.mean(d_rate_ok):.1f}%  vs  "f"Greedy {100*np.mean(g_rate_ok):.1f}%  of users") # % of users who satisfy the min data rate (1 bit/s/Hz per the overleaf table)
     print("=" * 62)
 
     fig, ax = plt.subplots(1, 2, figsize=(13, 5))
@@ -104,7 +101,7 @@ def evaluate(net, tag, curve_path):
             ax[0].set_xlabel("episode"); ax[0].set_ylabel("avg semantic utility per user")
             ax[0].set_title(f"Learning curve [{tag}]"); ax[0].legend(); ax[0].grid(alpha=0.3)
     ax[1].bar(["DDQN", "Greedy", "Random"], [d, g, r], color=["#2a9d8f", "#e63946", "#adb5bd"])
-    ax[1].set_ylabel("avg semantic utility per user"); ax[1].set_title(f"Avg utility per user [{tag}] (K=8)")
+    ax[1].set_ylabel("avg semantic utility per user"); ax[1].set_title(f"Avg utility per user [{tag}] (K=8) (avg from {SCENES} rand scenes)")
     ax[1].grid(alpha=0.3, axis="y")
     out = "eval_results.png"
     plt.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
@@ -113,7 +110,7 @@ def evaluate(net, tag, curve_path):
 
 def main():
     if not os.path.exists(tv.MODEL_PATH):
-        print(f"No trained model at {tv.MODEL_PATH}. Run pure-ddqn-training.py first."); return
+        print(f"No trained model at {tv.MODEL_PATH}. Run train.py first."); return
     try:
         net = load_model(tv.MODEL_PATH)
     except Exception as e:

@@ -11,7 +11,7 @@ if HEADLESS:
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-spec = importlib.util.spec_from_file_location("tv", os.path.join(os.path.dirname(os.path.abspath(__file__)), "training-vid.py"))
+spec = importlib.util.spec_from_file_location("tv", os.path.join(os.path.dirname(os.path.abspath(__file__)), "train.py"))
 tv = importlib.util.module_from_spec(spec); sys.modules["tv"] = tv; spec.loader.exec_module(tv)
 
 

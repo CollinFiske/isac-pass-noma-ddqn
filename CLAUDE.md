@@ -20,10 +20,10 @@ agent has genuine sequential lookahead.
 
 ```bash
 pip install torch numpy matplotlib
-python pure-ddqn-training.py   # train the agent -> NEW_isac_pass_noma_ddqn.pth (+ eval_curve.npy, training_log.npy)
-python eval-vid.py             # DDQN vs greedy vs random, learned-vs-closed alpha, SINR + R_min -> eval_results.png
-python inference-vid.py        # animate learned pairing + power split
-python compare-vid.py          # DDQN vs exhaustive-greedy, side by side
+python train.py   # train the agent -> NEW_isac_pass_noma_ddqn.pth (+ eval_curve.npy, training_log.npy)
+python evaluate-ddqn.py            # DDQN vs greedy vs random, learned-vs-closed alpha, SINR + R_min -> eval_results.png
+python inference.py               # animate learned pairing + power split
+python compare-ddqn-vs-greedy.py  # DDQN vs exhaustive-greedy, side by side
 ```
 
 - Train first; the other three load `NEW_isac_pass_noma_ddqn.pth` and abort if missing.
@@ -32,11 +32,12 @@ python compare-vid.py          # DDQN vs exhaustive-greedy, side by side
   `MODEL_PATH` overrides the weights file the scripts load; `HEADLESS=1` saves PNGs.
 - Python block-buffers redirected stdout — use `python -u` when logging a background run to a file.
 
-## File layout — one shared module, one trainer
+## File layout — one self-contained file
 
-**`training-vid.py` is the single source of truth** (physics, features, `JointQNet`, DDQN helpers, policy,
-eval). The trainer `pure-ddqn-training.py` and the three demo/eval scripts `importlib`-load it as `tv` and
-call `tv.<fn>` — **do NOT re-duplicate physics/constants**; add shared logic to `training-vid.py`. The
+**`train.py` is everything** (physics, features, `JointQNet`, DDQN helpers, the policy, eval, AND the
+training loop). Run it directly to train; the three demo/eval scripts `importlib`-load it as `tv` and
+call `tv.<fn>` (importing does NOT trigger training — it is guarded by `__main__`). **Do NOT
+re-duplicate physics/constants**; add shared logic to `train.py`. The
 trained model file is a **plain `JointQNet` state_dict** (NOT v2's `{"grouping","alpha"}` dict —
 incompatible; retrain).
 
@@ -60,7 +61,7 @@ incompatible; retrain).
 
 ## Learning rule (real Double-DQN — the whole point of v3)
 
-`ddqn_update` (in `training-vid.py`):
+`ddqn_update` (in `train.py`):
 ```
 a* = argmax_a' Q_online(s', a')          # select with online net
 y  = r + gamma * Q_target(s', a*)        # evaluate with target net;  y = r if terminal
@@ -72,24 +73,24 @@ epsilon-greedy over `(pair,alpha)` and takes one gradient step per formed pair.
 
 ## The trainer
 
-- **`pure-ddqn-training.py`** — trains from scratch, learning ONLY from sampled rewards + bootstrapping (no
+- **`train.py`** — trains from scratch, learning ONLY from sampled rewards + bootstrapping (no
   analytic labels). Every `EVAL_EVERY` episodes it grades the frozen policy on 50 fixed K=8 scenes
   (`periodic_eval`) and saves only the **best-ratio** checkpoint, so a late unlucky episode can't overwrite
   a good model. Ends with a **200-scene held-out** verification — trust that number, not the per-eval
   prints. Writes `NEW_isac_pass_noma_ddqn.pth`, `eval_curve.npy`, `training_log.npy`.
 
-## Physics chain (all in `training-vid.py`, mapped to paper equations)
+## Physics chain (all in `train.py`, mapped to paper equations)
 
 Unchanged from v2: `comm_pa_gain` (eq 4-5), `sensing_snr_db` (eq 12/14/16), `assign_comm_pas` (eq 6/7),
 `fidelity` (eq 17), `pair_sinrs` (eq 10/11, SIC), `pair_utility_at_alpha` (eq 18), `rate_penalty`
 (eq c_rate), `closed_form_alpha` (eq 23, greedy's split), `reposition_pas` (PA heuristic), `step_mobility`
-(eq 1-2). `best_alpha` is the analytic oracle used ONLY by `eval-vid.py` (to grade the net's partner picks
+(eq 1-2). `best_alpha` is the analytic oracle used ONLY by `evaluate-ddqn.py` (to grade the net's partner picks
 against the true best) — the agent never trains against it.
 
 ## Reporting convention
 
 All reported/plotted numbers are **average semantic utility PER USER** (`pairs_utility_per_user`), not
-totals and not raw rate. `eval-vid.py` also reports learned-vs-closed alpha gain, grouping partner-selection
+totals and not raw rate. `evaluate-ddqn.py` also reports learned-vs-closed alpha gain, grouping partner-selection
 quality (0.5 = chance, via `pair_group_value`), comm/weak/strong/sensing SINR medians, %clearing
 `Gamma_min`, and R_min satisfaction (DDQN vs greedy).
 
@@ -119,10 +120,10 @@ scratch is the headline: the learned alpha plus the sequential-PA lookahead is w
 
 ## Common tasks
 
-- **Retrain**: rerun `pure-ddqn-training.py` (any change to feature layout, `JointQNet` shape, `ALPHA_LEVELS`,
+- **Retrain**: rerun `train.py` (any change to feature layout, `JointQNet` shape, `ALPHA_LEVELS`,
   `CTX_DIM`, or physics constants **requires a retrain** — the checkpoint is a fixed-shape state_dict).
 - **Tune lookahead vs stability**: `GAMMA`, `TARGET_SYNC`, `LR`, `EPISODES`.
-- **Tune R_min enforcement**: `RATE_PENALTY_FACTOR` in `training-vid.py` (higher = more satisfaction, less
+- **Tune R_min enforcement**: `RATE_PENALTY_FACTOR` in `train.py` (higher = more satisfaction, less
   utility) + retrain.
 - **Add a state feature**: extend `build_base_features` and bump `USER_FEAT` (then `PAIR_DIM`/`IN_DIM`
   follow); or extend `build_context` and bump `CTX_DIM`. Retrain.
