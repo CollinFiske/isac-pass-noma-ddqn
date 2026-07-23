@@ -1,5 +1,4 @@
-# Animated demo of a TRAINED JointQNet: users walk around and the net re-pairs them (with a learned
-# power split) every slot. Inference only. Train first; loads NEW_isac_pass_noma_ddqn.pth (override with MODEL_PATH=...).
+# Animated demo of running inference on trained ddqn model: users move around and the nn re-pairs them (with a learned # power split) every time slot
 import os, sys, importlib.util
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 HEADLESS = os.environ.get("HEADLESS", "0") == "1"
@@ -14,34 +13,33 @@ spec = importlib.util.spec_from_file_location("tv", os.path.join(os.path.dirname
 tv = importlib.util.module_from_spec(spec); sys.modules["tv"] = tv; spec.loader.exec_module(tv)
 
 
-def run_inference():
+def run_inference(): # inference stuff
     np.random.seed(7)
     try:
         net = tv.JointQNet()
-        net.load_state_dict(torch.load(tv.MODEL_PATH)); net.eval()   # ONE unified Q-net now
+        net.load_state_dict(torch.load(tv.MODEL_PATH)); net.eval()   # load the nn
     except Exception as e:
         print("Train model first!", e); return
     print(f"--- INFERENCE using {tv.MODEL_PATH} ---")
 
-    N, STEPS, SUBSTEPS = 8, 20, 60   # each frame advances 60x40ms = 2.4 s of mobility
-    pts = np.zeros((N, 3))
+    N, STEPS, SUBSTEPS = 8, 20, 60  # 8 users; 20 steps; each frame advances 60x40ms = 2.4 s of mobility
+    pts = np.zeros((N, 3)) # setting up init user positions
     pts[:, 0] = np.random.uniform(0, tv.L_PITCH, N); pts[:, 1] = np.random.uniform(0, tv.W_PITCH, N)
-    mean_vel = np.random.uniform(-1.2, 1.2, (N, 2)); vel = mean_vel.copy()
-    w = np.random.choice(tv.WEIGHT_SET, N); fad = tv.shadowing((N,))
+    mean_vel = np.random.uniform(-1.2, 1.2, (N, 2)); vel = mean_vel.copy() # assign velocities
+    w = np.random.choice(tv.WEIGHT_SET, N); fad = tv.shadowing((N,)) # assign semantic weights
 
-    hist = []
-    for step in range(1, STEPS + 1):
-        x_s, x_c = tv.reposition_pas(pts)
-        base = tv.build_base_features(pts, vel, w, fad, x_c)
-        # THE MODEL'S DECISION: ddqn_form_pairs picks argmax (pair, alpha) from JointQNet, repeatedly,
-        # until all users are grouped -> returns [(u1, u2, alpha), ...]
-        pairs = tv.ddqn_form_pairs(net, base, [True] * N, x_s, x_c)
-        util_pu = tv.pairs_utility_per_user(pairs, pts, fad, w, x_c, N // 2, "given")
-        print(f"[slot {step:2d}] avg util/user: {util_pu:.3f} | "
-              + ", ".join(f"U{u}-U{v}(a={a:.2f})" for u, v, a in pairs))
+    hist = [] # history of all steps
+    for step in range(1, STEPS + 1): # run for all time slots
+        x_s, x_c = tv.reposition_pas(pts) # gets sensing and comm PA positions
+        base = tv.build_base_features(pts, vel, w, fad, x_c) # builds 7-feature row per user: [pos_x, pos_y, vel_x, vel_y, fading, weight, chan_dB]
+        # THE MODEL'S DECISION: ddqn_form_pairs picks argmax (pair, alpha) from JointQNet, runs til all users grouped -> returns [(u1, u2, alpha), ...]
+        pairs = tv.ddqn_form_pairs(net, base, [True] * N, x_s, x_c) # makes pairs
+        util_pu = tv.pairs_utility_per_user(pairs, pts, fad, w, x_c, N // 2, "given") # gets utility
+        print(f"[slot {step:2d}] avg util/user: {util_pu:.3f} | " + ", ".join(f"U{u}-U{v}(a={a:.2f})" for u, v, a in pairs))
         hist.append((pts.copy(), pairs, vel.copy(), x_s.copy(), x_c.copy(), util_pu))
-        vel = tv.step_mobility(pts, vel, mean_vel, n_sub=SUBSTEPS)
+        vel = tv.step_mobility(pts, vel, mean_vel, n_sub=SUBSTEPS) # moves users
 
+    # graph plotting stuff
     fig, ax = plt.subplots(figsize=(8, 6))
     if not HEADLESS:
         fig.canvas.manager.set_window_title('v3 DDQN Inference')

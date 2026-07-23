@@ -86,7 +86,7 @@ def evaluate(net, tag, curve_path): # does the eval of the ddqn model - verifies
     print("-" * 62)
     print(f" Grouping partner-selection quality: {np.mean(partner_opt):.2f} of optimal (random=0.5)") # how good the nn is at picking who to pair w/ who (1=best partner, 0.5=same as random guess, 0=worst)
     print("-" * 62)
-    print(f" median comm SINR (all users): {np.median(comm):.2f} | weak users: {np.median(weak):.2f} | strong users: {np.median(strong):.2f}"f" | sensing {np.median(sens):.2f} dB | clear Gamma_min {100*np.mean(np.array(sens)>=tv.GAMMA_MIN_DB):.1f}%") # 
+    print(f" median communication SINR (all users): {np.median(comm):.2f} | weak users: {np.median(weak):.2f} | strong users: {np.median(strong):.2f}"f" | median sensing SNR {np.median(sens):.2f} dB | users who satisfy Gamma_min {100*np.mean(np.array(sens)>=tv.GAMMA_MIN_DB):.1f}%") 
     print("-" * 62)
     print(f" R_min ({tv.R_MIN:.0f} bit/s/Hz) satisfaction:  DDQN {100*np.mean(d_rate_ok):.1f}%  vs  "f"Greedy {100*np.mean(g_rate_ok):.1f}%  of users") # % of users who satisfy the min data rate (1 bit/s/Hz per the overleaf table)
     print("=" * 62)

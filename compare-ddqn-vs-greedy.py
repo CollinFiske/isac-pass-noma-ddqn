@@ -24,6 +24,7 @@ def run_comparison():
         print("Run training first.", e); return
     print(f"--- DDQN ({tv.MODEL_PATH}) vs Greedy (exhaustive + closed-form alpha) ---")
 
+    # same as inference.py, but all runs the greedy option for each time step and compares them
     N, STEPS, SUBSTEPS = 8, 20, 60; P_groups = N // 2
     pts = np.zeros((N, 3))
     pts[:, 0] = np.random.uniform(0, tv.L_PITCH, N); pts[:, 1] = np.random.uniform(0, tv.W_PITCH, N)
@@ -40,10 +41,10 @@ def run_comparison():
         g_s = tv.pairs_utility_per_user(gp, pts, fad, w, x_c, P_groups, "closed")
         d_cum += d_s; g_cum += g_s
         hist.append((pts.copy(), dp, gp, vel.copy(), x_s.copy(), x_c.copy(), d_cum, g_cum, d_s, g_s))
-        print(f"slot {step+1:2d} | util/user: DDQN {d_s:6.3f}  Greedy {g_s:6.3f} | "
-              f"cumulative/user: DDQN {d_cum:7.3f}  Greedy {g_cum:7.3f} | DDQN/Greedy {100*d_cum/max(g_cum,1e-9):5.1f}%")
+        print(f"slot {step+1:2d} | util/user: DDQN {d_s:6.3f}  Greedy {g_s:6.3f} | "f"cumulative/user: DDQN {d_cum:7.3f}  Greedy {g_cum:7.3f} | DDQN/Greedy {100*d_cum/max(g_cum,1e-9):5.1f}%")
         vel = tv.step_mobility(pts, vel, mean_vel, n_sub=SUBSTEPS)
 
+    # graph plotting stuff
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 7))
     if not HEADLESS:
         fig.canvas.manager.set_window_title('v3 DDQN vs Greedy')

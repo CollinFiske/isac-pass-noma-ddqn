@@ -1,20 +1,3 @@
-
-# =====================================================================================
-#  mobility-ddqn-v3  -  UNIFIED JOINT DDQN   (single self-contained file: physics + net + training)
-# -------------------------------------------------------------------------------------
-#  A single agent learns to (a) GROUP mobile users into NOMA pairs and (b) SPLIT each pair's power
-#  (alpha), maximizing a semantic utility under sensing- and rate-QoS, beating an exhaustive-greedy
-#  baseline. It is a REAL Double-DQN: ONE network `JointQNet` scores every (pair, alpha) action and
-#  is trained PURELY from experienced rewards + Bellman bootstrapping (no analytic labels).
-#
-#  Pairing one scene is a short MDP: pick a (pair, alpha) -> collect that pair's reward -> remove the
-#  two users AND their comm antennas -> repeat until nobody is left. Because an early choice changes
-#  what later pairs get, the Q-function's lookahead can beat greedy's myopic "grab the best pair now".
-#
-#  RUN:   python train.py     # trains -> NEW_isac_pass_noma_ddqn.pth (+ eval_curve.npy, training_log.npy)
-#  The demo/eval scripts (inference / compare-ddqn-vs-greedy / evaluate-ddqn) import this file as `tv` for the
-#  shared physics/net/policy. Importing does NOT trigger training (guarded by __main__ at the bottom).
-# =====================================================================================
 import os
 import random
 import numpy as np
@@ -24,7 +7,7 @@ import torch.optim as optim
 from collections import deque
 from itertools import combinations
 
-device = torch.device("cpu")   # hardcoded CPU; switch to "cuda" if a GPU is available 
+device = torch.device("cpu")   # for running on devices w/ hardcoded CPU; switch to "cuda" if a GPU is available 
 
 # system parameters
 F_CARRIER, C_LIGHT = 28e9, 3e8
@@ -67,7 +50,7 @@ IN_DIM = PAIR_DIM + CTX_DIM   # 20 - JointQNet input width
 MODEL_PATH = os.environ.get("MODEL_PATH", "NEW_isac_pass_noma_ddqn.pth")
 
 
-# random per-user signal blockage - some users just have worse luck
+# random per-user signal blockage
 def shadowing(size):
     return 10.0 ** (np.random.normal(0.0, 2.0, size) / 20.0)
 
@@ -89,7 +72,7 @@ def sensing_snr_db(pt, x_s):
     gamma = (P_S / N_S) * G_P * (np.abs(beta) ** 2) / SIGMA2                    # eq (14)
     return 10.0 * np.log10(max(float(gamma), 1e-12))
 
-# give a pair the m nearest unused comm PAs and remove them from the pool (eq 6/7 exclusivity)
+# give a pair the m nearest unused comm PAs and remove them from the pool (eq 6/7)
 def assign_comm_pas(group_cx, pool, x_c, m):
     picks = sorted(pool, key=lambda n: abs(x_c[n] - group_cx))[:m]
     for n in picks:
@@ -205,7 +188,7 @@ def cand_rows(base, ctx, cand):
     return np.stack([np.concatenate([pair_input(base, i, j), ctx]) for (i, j) in cand]).astype(np.float32)
 
 
-# THE NETWORK itself
+# THE NUERAL NETWORK (nn) ITSELF
 class JointQNet(nn.Module):
     def __init__(self, in_dim=IN_DIM, k_alpha=K_ALPHA):
         super().__init__()
@@ -436,20 +419,9 @@ def periodic_eval(net, n_scenes=50, K=8, seed=2024):
     return d_tot / n_scenes, g_tot / n_scenes, r_tot / n_scenes
 
 
-# ===================================================================================
-#  TRAINING ENTRY POINT   (run `python train.py` to train the agent)
-# ===================================================================================
-# Trains the JointQNet agent with a real Double-DQN, purely from sampled rewards + Bellman
-# bootstrapping (no analytic labels, no supervised shortcut). Saves -> NEW_isac_pass_noma_ddqn.pth
-#
-# Per episode: build a random scene, pair it off end-to-end while collecting transitions and taking a
-# DDQN gradient step per pair (tv.train_one_episode -> tv.ddqn_update), decay epsilon, and every
-# EVAL_EVERY episodes grade the frozen policy vs greedy/random - keeping the BEST-ratio checkpoint so
-# a late unlucky episode can't overwrite a good model. Ends with a 200-scene held-out verification.
-# Env vars: EPISODES (6000), EVAL_EVERY (500), LR (3e-4), TARGET_SYNC (250, target-net refresh), GAMMA (0.99)
-def train():
+def train(): # entry point for the training to start
     np.random.seed(42); torch.manual_seed(42); random.seed(42)
-    EPISODES = int(os.environ.get("EPISODES", "20000"))
+    EPISODES = int(os.environ.get("EPISODES", "20000")) # put wayyy up if GPU / HPC is available
     EVAL_EVERY = int(os.environ.get("EVAL_EVERY", "500"))
     lr = float(os.environ.get("LR", "3e-4"))
     target_sync = int(os.environ.get("TARGET_SYNC", "250"))
